@@ -27,6 +27,7 @@ class UserCreate(BaseModel):
     password: str
     role: str
     subject_field: Optional[str] = None
+    learning_center_id: Optional[int] = None
 
 
 class UserResponse(BaseModel):
