@@ -3,10 +3,50 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from ..database import get_db
 from ..models import User, LearningCenter
-from ..schemas import LearningCenterCreate, LearningCenterResponse
-from ..auth import require_role
+from ..schemas import LearningCenterCreate, LearningCenterResponse, UserCreate
+from ..auth import require_role, get_password_hash
 
 router = APIRouter()
+
+
+@router.post("/users", response_model=dict)
+def create_admin_user(
+        request: UserCreate,
+        current_user: User = Depends(require_role(["admin"])),
+        db: Session = Depends(get_db)
+):
+    # Check if phone already exists
+    existing_user = db.query(User).filter(User.phone == request.phone).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bu telefon raqam allaqachon ro'yxatdan o'tgan"
+        )
+
+    if request.role not in ["admin", "manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Faqat admin yoki menejer yaratish mumkin"
+        )
+
+    user = User(
+        fullname=request.fullname,
+        phone=request.phone,
+        password=get_password_hash(request.password),
+        role=request.role,
+        learning_center_id=request.learning_center_id if request.role == "manager" else None,
+        subject_field=request.subject_field
+    )
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "user_id": user.id,
+        "success": True,
+        "message": f"{request.role.title()} hisobi muvaffaqiyatli yaratildi"
+    }
 
 
 @router.post("/learning-centers", response_model=dict)
