@@ -8,9 +8,19 @@ from ..auth import require_role, get_password_hash
 
 router = APIRouter()
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from ..database import get_db
+from ..models import User, LearningCenter
+from ..schemas import LearningCenterCreate, LearningCenterResponse, UserCreate
+from ..auth import require_role, get_password_hash
+
+router = APIRouter()
+
 
 @router.post("/users", response_model=dict)
-def create_admin_user(
+def create_manager(
         request: UserCreate,
         current_user: User = Depends(require_role(["admin"])),
         db: Session = Depends(get_db)
@@ -23,10 +33,24 @@ def create_admin_user(
             detail="Bu telefon raqam allaqachon ro'yxatdan o'tgan"
         )
 
-    if request.role not in ["admin", "manager"]:
+    if request.role != "manager":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Faqat admin yoki menejer yaratish mumkin"
+            detail="Faqat menejer yaratish mumkin"
+        )
+
+    # Verify learning center exists
+    if not request.learning_center_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Menejer uchun o'quv markaz ID kerak"
+        )
+
+    center = db.query(LearningCenter).filter(LearningCenter.id == request.learning_center_id).first()
+    if not center:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="O'quv markaz topilmadi"
         )
 
     user = User(
@@ -34,7 +58,7 @@ def create_admin_user(
         phone=request.phone,
         password=get_password_hash(request.password),
         role=request.role,
-        learning_center_id=request.learning_center_id if request.role == "manager" else None,
+        learning_center_id=request.learning_center_id,
         subject_field=request.subject_field
     )
 
@@ -45,7 +69,7 @@ def create_admin_user(
     return {
         "user_id": user.id,
         "success": True,
-        "message": f"{request.role.title()} hisobi muvaffaqiyatli yaratildi"
+        "message": "Menejer muvaffaqiyatli yaratildi"
     }
 
 
