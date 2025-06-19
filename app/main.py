@@ -1,18 +1,28 @@
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from datetime import timedelta
 import shutil
 import os
 from uuid import uuid4
 
-from .database import get_db, create_tables
+from .database import get_db, SessionLocal
 from .models import User, LearningCenter
 from .schemas import *
 from .auth import *
 from .routes import admin, manager, assistant, student
 
 app = FastAPI(title="Learning Center API")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Create uploads directory
 os.makedirs("uploads/photos", exist_ok=True)
@@ -27,8 +37,7 @@ app.include_router(student.router, prefix="/student", tags=["student"])
 
 @app.on_event("startup")
 def startup_event():
-    # Only create admin if no admin exists (migration handles table creation)
-    from .database import SessionLocal
+    # Only create admin if no admin exists (migrations handle table creation)
     db = SessionLocal()
     try:
         admin_exists = db.query(User).filter(User.role == "admin").first()
