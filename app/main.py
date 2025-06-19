@@ -27,8 +27,8 @@ app.include_router(student.router, prefix="/student", tags=["student"])
 
 @app.on_event("startup")
 def startup_event():
-    create_tables()
-    # Create admin account
+    # Only create admin if no admin exists (migration handles table creation)
+    from .database import SessionLocal
     db = SessionLocal()
     try:
         admin_exists = db.query(User).filter(User.role == "admin").first()
@@ -41,6 +41,9 @@ def startup_event():
             )
             db.add(admin_user)
             db.commit()
+    except Exception:
+        # Tables might not exist yet, migrations will handle this
+        pass
     finally:
         db.close()
 

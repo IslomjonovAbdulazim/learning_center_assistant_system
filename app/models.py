@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text, Float
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text, Float, func
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
@@ -9,10 +9,11 @@ class LearningCenter(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    created_by_admin_id = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by_admin_id = Column(Integer, nullable=True)  # Remove FK constraint for now
+    created_at = Column(DateTime, default=func.now())
 
-    users = relationship("User", back_populates="learning_center")
+    # Remove the relationship to avoid circular dependency
+    # users = relationship("User", back_populates="learning_center")
 
 
 class User(Base):
@@ -26,9 +27,10 @@ class User(Base):
     learning_center_id = Column(Integer, ForeignKey("learning_centers.id"), nullable=True)
     subject_field = Column(String, nullable=True)
     photo_url = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
 
-    learning_center = relationship("LearningCenter", back_populates="users")
+    # Remove the relationship to avoid circular dependency
+    # learning_center = relationship("LearningCenter", back_populates="users")
     assistant_sessions = relationship("Session", foreign_keys="Session.assistant_id", back_populates="assistant")
     student_sessions = relationship("Session", foreign_keys="Session.student_id", back_populates="student")
 
@@ -42,7 +44,7 @@ class Session(Base):
     datetime = Column(DateTime, nullable=False)
     status = Column(String, default="booked")  # booked, completed, cancelled
     attendance = Column(String, nullable=True)  # present, absent
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
 
     student = relationship("User", foreign_keys=[student_id], back_populates="student_sessions")
     assistant = relationship("User", foreign_keys=[assistant_id], back_populates="assistant_sessions")
@@ -60,7 +62,7 @@ class Rating(Base):
     engagement = Column(Integer, nullable=False)  # 1-5
     problem_solving = Column(Integer, nullable=False)  # 1-5
     comments = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
 
     session = relationship("Session", back_populates="rating")
 
@@ -73,4 +75,4 @@ class Availability(Base):
     date = Column(String, nullable=False)  # YYYY-MM-DD
     time_slot = Column(String, nullable=False)  # HH:MM
     is_available = Column(String, default="available")  # available, booked, busy
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
