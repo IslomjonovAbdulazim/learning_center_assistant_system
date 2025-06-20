@@ -3,17 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from ..database import get_db
 from ..models import User, LearningCenter
-from ..schemas import LearningCenterCreate, LearningCenterResponse, UserCreate
-from ..auth import require_role, get_password_hash
-
-router = APIRouter()
-
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from ..database import get_db
-from ..models import User, LearningCenter
-from ..schemas import LearningCenterCreate, LearningCenterResponse, UserCreate
+from ..schemas import LearningCenterCreate, UserCreate
 from ..auth import require_role, get_password_hash
 
 router = APIRouter()
@@ -53,13 +43,14 @@ def create_manager(
             detail="O'quv markaz topilmadi"
         )
 
+    # Managers don't have subjects - only assistants and students do
     user = User(
         fullname=request.fullname,
         phone=request.phone,
         password=get_password_hash(request.password),
         role=request.role,
         learning_center_id=request.learning_center_id,
-        subject_field=request.subject_field
+        subject_id=None  # Managers don't have subjects
     )
 
     db.add(user)
@@ -70,6 +61,81 @@ def create_manager(
         "user_id": user.id,
         "success": True,
         "message": "Menejer muvaffaqiyatli yaratildi"
+    }
+
+
+@router.get("/users")
+def get_managers(
+        current_user: User = Depends(require_role(["admin"])),
+        db: Session = Depends(get_db)
+):
+    managers = db.query(User).filter(User.role == "manager").all()
+
+    result = []
+    for manager in managers:
+        center = db.query(LearningCenter).filter(LearningCenter.id == manager.learning_center_id).first()
+        result.append({
+            "id": manager.id,
+            "fullname": manager.fullname,
+            "phone": manager.phone,
+            "learning_center_id": manager.learning_center_id,
+            "learning_center_name": center.name if center else "N/A",
+            "created_at": manager.created_at
+        })
+
+    return result
+
+
+@router.put("/users/{user_id}")
+def update_manager(
+        user_id: int,
+        request: dict,
+        current_user: User = Depends(require_role(["admin"])),
+        db: Session = Depends(get_db)
+):
+    manager = db.query(User).filter(User.id == user_id, User.role == "manager").first()
+    if not manager:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Menejer topilmadi"
+        )
+
+    # Update fields
+    if "fullname" in request:
+        manager.fullname = request["fullname"]
+    if "phone" in request:
+        manager.phone = request["phone"]
+    if "learning_center_id" in request:
+        manager.learning_center_id = request["learning_center_id"]
+
+    db.commit()
+    db.refresh(manager)
+
+    return {
+        "success": True,
+        "message": "Menejer muvaffaqiyatli yangilandi"
+    }
+
+
+@router.delete("/users/{user_id}")
+def delete_manager(
+        user_id: int,
+        current_user: User = Depends(require_role(["admin"])),
+        db: Session = Depends(get_db)
+):
+    manager = db.query(User).filter(User.id == user_id, User.role == "manager").first()
+    if not manager:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Menejer topilmadi"
+        )
+
+    db.delete(manager)
+    db.commit()
+
+    return {
+        "success": True,
+        "message": "Menejer muvaffaqiyatli o'chirildi"
     }
 
 
@@ -116,7 +182,63 @@ def get_learning_centers(
             "id": center.id,
             "name": center.name,
             "total_users": total_users,
-            "created_date": center.created_at.strftime("%d.%m.%Y")
+            "created_date": center.created_at.strftime("%d.%m.%Y") if center.created_at else "N/A"
         })
 
     return result
+
+
+@router.put("/learning-centers/{center_id}")
+def update_learning_center(
+        center_id: int,
+        request: dict,
+        current_user: User = Depends(require_role(["admin"])),
+        db: Session = Depends(get_db)
+):
+    center = db.query(LearningCenter).filter(LearningCenter.id == center_id).first()
+    if not center:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="O'quv markaz topilmadi"
+        )
+
+    if "name" in request:
+        center.name = request["name"]
+
+    db.commit()
+    db.refresh(center)
+
+    return {
+        "success": True,
+        "message": "O'quv markaz muvaffaqiyatli yangilandi"
+    }
+
+
+@router.delete("/learning-centers/{center_id}")
+def delete_learning_center(
+        center_id: int,
+        current_user: User = Depends(require_role(["admin"])),
+        db: Session = Depends(get_db)
+):
+    center = db.query(LearningCenter).filter(LearningCenter.id == center_id).first()
+    if not center:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="O'quv markaz topilmadi"
+        )
+
+    # Check if center has users
+    users_count = db.query(func.count(User.id)).filter(User.learning_center_id == center_id).scalar()
+    if users_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bu markazda foydalanuvchilar mavjud. Avval ularni o'chiring."
+        )
+
+    db.delete(center)
+    db.commit()
+
+    return {
+        "success": True,
+        "message": "O'quv markaz muvaffaqiyatli o'chirildi"
+    }

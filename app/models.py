@@ -9,11 +9,18 @@ class LearningCenter(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    created_by_admin_id = Column(Integer, nullable=True)  # Remove FK constraint for now
+    created_by_admin_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=func.now())
 
-    # Remove the relationship to avoid circular dependency
-    # users = relationship("User", back_populates="learning_center")
+
+class Subject(Base):
+    __tablename__ = "subjects"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    learning_center_id = Column(Integer, ForeignKey("learning_centers.id"), nullable=False)
+    created_by_manager_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=func.now())
 
 
 class User(Base):
@@ -25,12 +32,10 @@ class User(Base):
     password = Column(String, nullable=False)
     role = Column(String, nullable=False)  # admin, manager, assistant, student
     learning_center_id = Column(Integer, ForeignKey("learning_centers.id"), nullable=True)
-    subject_field = Column(String, nullable=True)
+    subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True)  # Only for assistant and student
     photo_url = Column(String, nullable=True)
     created_at = Column(DateTime, default=func.now())
 
-    # Remove the relationship to avoid circular dependency
-    # learning_center = relationship("LearningCenter", back_populates="users")
     assistant_sessions = relationship("Session", foreign_keys="Session.assistant_id", back_populates="assistant")
     student_sessions = relationship("Session", foreign_keys="Session.student_id", back_populates="student")
 
