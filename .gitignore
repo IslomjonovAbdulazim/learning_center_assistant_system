@@ -13,9 +13,9 @@
 ## Environment variables
 #.env
 #
-## Database
-#*.db
-#*.sqlite
+# Database
+*.db
+*.sqlite
 #
 ## Uploads
 #uploads/photos/*
