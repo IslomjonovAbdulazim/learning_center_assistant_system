@@ -9,7 +9,6 @@ class LearningCenter(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    created_by_admin_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=func.now())
 
 
@@ -19,7 +18,6 @@ class Subject(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     learning_center_id = Column(Integer, ForeignKey("learning_centers.id"), nullable=False)
-    created_by_manager_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=func.now())
 
 
@@ -32,7 +30,7 @@ class User(Base):
     password = Column(String, nullable=False)
     role = Column(String, nullable=False)  # admin, manager, assistant, student
     learning_center_id = Column(Integer, ForeignKey("learning_centers.id"), nullable=True)
-    subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True)  # Only for assistant and student
+    subject_field = Column(String, nullable=True)  # Keep this for now to avoid migration issues
     photo_url = Column(String, nullable=True)
     created_at = Column(DateTime, default=func.now())
 

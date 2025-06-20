@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import hashlib
+import secrets
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
@@ -12,20 +13,33 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-this-in-production")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verify a password against its hash using simple SHA256 + salt"""
+    try:
+        # Split the stored hash to get salt and hash
+        stored_salt, stored_hash = hashed_password.split(':')
+        # Hash the provided password with the same salt
+        password_hash = hashlib.sha256((plain_password + stored_salt).encode()).hexdigest()
+        return password_hash == stored_hash
+    except:
+        return False
 
 
 def get_password_hash(password):
-    return pwd_context.hash(password)
+    """Hash a password using SHA256 + random salt"""
+    # Generate a random salt
+    salt = secrets.token_hex(16)
+    # Hash password with salt
+    password_hash = hashlib.sha256((password + salt).encode()).hexdigest()
+    # Return salt:hash format
+    return f"{salt}:{password_hash}"
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):

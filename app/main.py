@@ -7,7 +7,7 @@ import shutil
 import os
 from uuid import uuid4
 
-from .database import get_db, SessionLocal
+from .database import get_db, SessionLocal, create_tables
 from .models import User, LearningCenter
 from .schemas import *
 from .auth import *
@@ -37,7 +37,10 @@ app.include_router(student.router, prefix="/student", tags=["student"])
 
 @app.on_event("startup")
 def startup_event():
-    # Only create admin if no admin exists (migrations handle table creation)
+    # Create tables
+    create_tables()
+
+    # Create admin if no admin exists
     db = SessionLocal()
     try:
         admin_exists = db.query(User).filter(User.role == "admin").first()
@@ -50,9 +53,9 @@ def startup_event():
             )
             db.add(admin_user)
             db.commit()
-    except Exception:
-        # Tables might not exist yet, migrations will handle this
-        pass
+            print("✅ Admin user created: +998990330919 / aisha")
+    except Exception as e:
+        print(f"Error creating admin: {e}")
     finally:
         db.close()
 
@@ -149,3 +152,15 @@ def upload_photo(file: UploadFile = File(...), current_user: User = Depends(get_
 @app.get("/")
 def root():
     return {"message": "Learning Center API ishlamoqda!"}
+
+
+# Debug endpoint to reset database
+@app.post("/debug/reset-db")
+def reset_database_endpoint():
+    from .database import reset_database
+    try:
+        reset_database()
+        startup_event()  # Recreate admin
+        return {"message": "Database reset successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
