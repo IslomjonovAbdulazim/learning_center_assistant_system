@@ -49,8 +49,8 @@ def create_manager(
         phone=request.phone,
         password=get_password_hash(request.password),
         role=request.role,
-        learning_center_id=request.learning_center_id,
-        subject_id=None  # Managers don't have subjects
+        learning_center_id=request.learning_center_id
+        # Remove subject_id - managers don't have subjects
     )
 
     db.add(user)
