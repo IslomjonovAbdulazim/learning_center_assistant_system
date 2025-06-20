@@ -112,6 +112,7 @@ def mark_attendance(
         current_user: User = Depends(require_role(["assistant"])),
         db: Session = Depends(get_db)
 ):
+    # Find session by ID and verify it belongs to current assistant
     session = db.query(SessionModel).filter(
         SessionModel.id == session_id,
         SessionModel.assistant_id == current_user.id
@@ -120,7 +121,7 @@ def mark_attendance(
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Dars topilmadi"
+            detail="Dars topilmadi yoki sizga tegishli emas"
         )
 
     attendance = attendance_data.get("attendance")
@@ -159,19 +160,38 @@ def get_sessions(
             SessionModel.datetime < now
         ).all()
 
-    result = []
+    # Group sessions by date and time
+    grouped_sessions = {}
+
     for session in sessions:
         student = db.query(User).filter(User.id == session.student_id).first()
-        result.append({
-            "id": session.id,
-            "date": session.datetime.strftime("%Y-%m-%d"),
-            "time": session.datetime.strftime("%H:%M"),
-            "students": [{
-                "name": student.fullname,
-                "phone": student.phone,
-                "photo": student.photo_url,
-                "attendance": session.attendance or "kutilmoqda"
-            }]
+        date_str = session.datetime.strftime("%Y-%m-%d")
+        time_str = session.datetime.strftime("%H:%M")
+        key = f"{date_str}_{time_str}"
+
+        if key not in grouped_sessions:
+            grouped_sessions[key] = {
+                "id": session.id,
+                "date": date_str,
+                "time": time_str,
+                "students": []
+            }
+
+        grouped_sessions[key]["students"].append({
+            "id": student.id,
+            "student_id": student.id,
+            "name": student.fullname,
+            "student_name": student.fullname,
+            "phone": student.phone,
+            "student_phone": student.phone,
+            "photo": student.photo_url,
+            "student_photo": student.photo_url,
+            "attendance": session.attendance or "kutilmoqda"
         })
+
+    result = list(grouped_sessions.values())
+
+    # Sort by datetime
+    result.sort(key=lambda x: datetime.strptime(f"{x['date']} {x['time']}", "%Y-%m-%d %H:%M"))
 
     return result

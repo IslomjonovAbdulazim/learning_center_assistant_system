@@ -15,11 +15,10 @@ def get_assistants(
         current_user: User = Depends(require_role(["student"])),
         db: Session = Depends(get_db)
 ):
-    # Get assistants in same subject and learning center
+    # Get ALL assistants in same learning center (not filtered by subject)
     assistants = db.query(User).filter(
         User.learning_center_id == current_user.learning_center_id,
-        User.role == "assistant",
-        User.subject_field == current_user.subject_field
+        User.role == "assistant"
     ).all()
 
     result = []
@@ -32,11 +31,12 @@ def get_assistants(
 
         avg_rating = avg_rating_query.scalar() or 0
 
-        # Get available slots for next 7 days
+        # Get available slots for future dates
         available_slots = db.query(Availability).filter(
             Availability.assistant_id == assistant.id,
-            Availability.is_available == "available"
-        ).limit(10).all()
+            Availability.is_available == "available",
+            Availability.date >= datetime.now().strftime("%Y-%m-%d")
+        ).limit(20).all()
 
         slots_list = []
         for slot in available_slots:
@@ -71,13 +71,6 @@ def book_session(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Yordamchi topilmadi"
-        )
-
-    # Check if subjects match
-    if assistant.subject_field != current_user.subject_field:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Faqat o'z yo'nalishingiz bo'yicha yordamchi tanlashingiz mumkin"
         )
 
     # Check if time slot is available
@@ -195,11 +188,11 @@ def create_rating(
             detail="Dars topilmadi"
         )
 
-    # Check if session is completed
-    if session.status != "completed":
+    # Check if session is completed and student attended
+    if session.attendance != "present":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Faqat tugallangan darslarni baholash mumkin"
+            detail="Faqat qatnashgan darslarni baholash mumkin"
         )
 
     # Check if already rated
