@@ -154,8 +154,7 @@ def create_learning_center(
         )
 
     learning_center = LearningCenter(
-        name=request.name,
-        created_by_admin_id=current_user.id
+        name=request.name
     )
     db.add(learning_center)
     db.commit()
