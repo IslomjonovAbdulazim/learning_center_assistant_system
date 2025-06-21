@@ -22,6 +22,9 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://education-center-assistant-system-a.vercel.app/",  # Add your deployed frontend URL here
+        "https://education-center-assistant-system-m.vercel.app/",
+        "https://education-center-assistant-system-s.vercel.app/",
+        "https://education-center-assistant-system-u.vercel.app/",
         "https://*.vercel.app",  # Allow all Vercel apps
         "https://*.netlify.app",  # Allow all Netlify apps
         "*"  # Allow all origins (for development only)
